@@ -10,7 +10,7 @@
   let movies = $state<TMovie[]>([]);
 
   onMount(() => {
-    d3.csv("/summer_movies.csv").then((data) => {
+    d3.csv("summer_movies.csv").then((data) => {
       movies = data.map((d) => ({
         num_votes: Number(d.num_votes),
         runtime_minutes: Number(d.runtime_minutes),
