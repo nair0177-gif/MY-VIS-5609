@@ -5,7 +5,7 @@
   import { Bar } from "$lib";
   import BumpChart from "$lib/BumpChart.svelte";
   import GenreCooccurrence from "../../lib/GenreCooccurrence.svelte";
-  import RankMatrix from "../../lib/RankMatrix.svelte";
+  
 
   let movies = $state<TMovie[]>([]);
 
