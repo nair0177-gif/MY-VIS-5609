@@ -31,17 +31,30 @@
 <h1>Summer Movies</h1>
 
 {#if movies.length > 0}
-  <p>Loaded {movies.length} movies.</p>
+  <p>Here are {movies.length} movies.</p>
 
   <Bar movies={movies} />
 
   <hr />
 
+  <h2>Q1: How do the top three movie genres (by number of movies) change over time?</h2>
+  <p>
+    This visualization shows how the ranking of the top three genres changes
+    across years.
+  </p>
+
   <BumpChart movies={movies} />
 
   <hr />
 
+  <h2>Q2: Are there any correlations between different genres?</h2>
+  <p>
+    This visualization shows which genres most frequently co-occur with a
+    selected genre.
+  </p>
+
   <GenreCooccurrence movies={movies} />
+
 {:else}
   <p>Loading movie data...</p>
 {/if}
