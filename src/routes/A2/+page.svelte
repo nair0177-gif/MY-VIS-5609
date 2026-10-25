@@ -6,30 +6,36 @@
     import type { TMovie } from "../../types";
     import { base } from "$app/paths";
 
+    // Reactive variable for storing the data
     let movies: TMovie[] = $state([]);
-    let yearRange: [Date, Date] | undefined = $state(undefined);
+
+    let yearRange: [Date, Date] | undefined = $state();
 
     function getYearCountArray(movies: TMovie[]) {
         let yearCount: { [year: number]: number } = {};
 
         const allYears = [
-    ...new Set(
-        movies
-            .filter(
-                (d) =>
-                    d.year instanceof Date &&
-                    !Number.isNaN(d.year.getTime()),
-            )
-            .map((d) => d.year.getFullYear()),
-    ),
-];
+            ...new Set(
+                movies
+                    .filter(
+                        (d) =>
+                            d.year instanceof Date &&
+                            !Number.isNaN(d.year.getTime()),
+                    )
+                    .map((d) => d.year.getFullYear()),
+            ),
+        ];
 
         for (let year of allYears) {
             yearCount[year] = movies.filter(
-                (d) => d.year.getFullYear() === year,
+                (d) =>
+                    d.year instanceof Date &&
+                    !Number.isNaN(d.year.getTime()) &&
+                    d.year.getFullYear() === year,
             ).length;
         }
 
+        // Convert the map to an array of { year, count } objects
         const yearCountArray = Object.entries(yearCount).map(
             ([year, count]) => ({
                 x: new Date(Number(year), 0, 1),
@@ -37,6 +43,7 @@
             }),
         );
 
+        // Sort the array by year in ascending order
         yearCountArray.sort((a, b) => a.x.getTime() - b.x.getTime());
 
         return yearCountArray;
@@ -50,78 +57,59 @@
         size: keyof TMovie;
     };
 
+    // Store the selected attributes for the chart
     let axisSelection: TAxisSelection = $state({
         x: "year",
         y: "average_rating",
         size: "num_votes",
     });
 
+    // Function to load the CSV
+    async function loadCsv() {
+        try {
+            // Keep the base path so the CSV works on GitHub Pages
+            const csvUrl = `${base}/summer_movies.csv`;
 
-async function loadCsv() {
-    try {
-        const csvUrl = `${base}/summer_movies.csv`;
+            const response = await fetch(csvUrl);
 
-        console.log("Fetching CSV:", csvUrl);
+            if (!response.ok) {
+                throw new Error(`CSV request failed: HTTP ${response.status}`);
+            }
 
-        const response = await fetch(csvUrl);
-        console.log("HTTP status:", response.status);
-        console.log("Content-Type:", response.headers.get("content-type"));
+            const csvText = await response.text();
 
-        if (!response.ok) {
-            throw new Error(`CSV request failed: HTTP ${response.status}`);
+            movies = d3.csvParse(csvText, (row) => ({
+                ...row,
+                num_votes: Number(row.num_votes),
+                runtime_minutes: Number(row.runtime_minutes),
+                genres: (row.genres ?? "").split(","),
+                year: new Date(`${row.year ?? ""}-01-01`),
+                average_rating: Number(row.average_rating),
+            }) as TMovie);
+
+            console.log("Loaded CSV Data:", movies);
+            console.log("Movie fields:", Object.keys(movies[0] ?? {}));
+        } catch (error) {
+            console.error("Error loading CSV:", error);
         }
-
-        const csvText = await response.text();
-        console.log("CSV preview:", csvText.slice(0, 300));
-
-        const parsedMovies = d3.csvParse(csvText, (row) => ({
-            ...row,
-            num_votes: Number(row.num_votes),
-            runtime_minutes: Number(row.runtime_minutes),
-            genres: (row.genres ?? "").split(","),
-            year: new Date(`${row.year ?? ""}-01-01`),
-            average_rating: Number(row.average_rating),
-        }) as TMovie);
-
-        console.log("Parsed movie count:", parsedMovies.length);
-        console.log("First parsed movie:", parsedMovies[0]);
-
-        movies = parsedMovies;
-    } catch (error) {
-        console.error("Error loading CSV:", error);
     }
-}
 
-
+    // Call the loader when the component mounts
     onMount(loadCsv);
 
+    // X Axis: include all fields from the movie data
     const attrOptionsX = $derived(
-        movies[0]
-            ? Object.keys(movies[0]).filter(
-                  (key) =>
-                      ![
-                          "tconst",
-                          "primary_title",
-                          "original_title",
-                      ].includes(key),
-              )
-            : [],
+        movies[0] ? Object.keys(movies[0]) : [],
     );
 
+    // Y Axis: exclude genres because it is an array
     const attrOptionsY = $derived(
         movies[0]
-            ? Object.keys(movies[0]).filter(
-                  (key) =>
-                      ![
-                          "genres",
-                          "tconst",
-                          "primary_title",
-                          "original_title",
-                      ].includes(key),
-              )
+            ? Object.keys(movies[0]).filter((key) => key !== "genres")
             : [],
     );
 
+    // Size: use numeric fields only
     const attrOptionsS = $derived(
         movies[0]
             ? Object.keys(movies[0]).filter(
@@ -131,7 +119,7 @@ async function loadCsv() {
             : [],
     );
 
-    // Extract the selected dates once so TypeScript can safely narrow them.
+    // Filter movies based on the selected year range
     const filteredMovies = $derived.by(() => {
         const range = yearRange;
 
@@ -143,7 +131,10 @@ async function loadCsv() {
 
         return movies.filter(
             (movie) =>
-                movie.year >= startDate && movie.year <= endDate,
+                movie.year instanceof Date &&
+                !Number.isNaN(movie.year.getTime()) &&
+                movie.year >= startDate &&
+                movie.year <= endDate,
         );
     });
 </script>
@@ -199,6 +190,12 @@ async function loadCsv() {
 </div>
 
 <style>
+    .container {
+        width: 60vw;
+        margin: 10px auto;
+        padding: 10px;
+    }
+
     .selectors {
         display: flex;
         flex-wrap: wrap;
