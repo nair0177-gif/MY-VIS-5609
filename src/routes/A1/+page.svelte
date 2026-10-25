@@ -5,12 +5,13 @@
   import { Bar } from "$lib";
   import BumpChart from "$lib/BumpChart.svelte";
   import GenreCooccurrence from "../../lib/GenreCooccurrence.svelte";
-  
+  import RankMatrix from "../../lib/RankMatrix.svelte";
+  import { base } from "$app/paths";
 
   let movies = $state<TMovie[]>([]);
 
   onMount(() => {
-    d3.csv("summer_movies.csv").then((data) => {
+    d3.csv(`${base}/summer_movies.csv`).then((data) => {
       movies = data.map((d) => ({
         num_votes: Number(d.num_votes),
         runtime_minutes: Number(d.runtime_minutes),
