@@ -104,10 +104,8 @@
 
     // Y Axis: exclude genres because it is an array
     const attrOptionsY = $derived(
-        movies[0]
-            ? Object.keys(movies[0]).filter((key) => key !== "genres")
-            : [],
-    );
+    movies[0] ? Object.keys(movies[0]) : [],
+);
 
     // Size: use numeric fields only
     const attrOptionsS = $derived(
