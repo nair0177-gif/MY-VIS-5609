@@ -111,13 +111,8 @@
 
     // Size: use numeric fields only
     const attrOptionsS = $derived(
-        movies[0]
-            ? Object.keys(movies[0]).filter(
-                  (key) =>
-                      typeof movies[0][key as keyof TMovie] === "number",
-              )
-            : [],
-    );
+    movies[0] ? Object.keys(movies[0]) : [],
+);
 
     // Filter movies based on the selected year range
     const filteredMovies = $derived.by(() => {
