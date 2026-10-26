@@ -559,31 +559,6 @@ const voteTicks = $derived(
             </p>
         </div>
 
-        <div class="interpretation-card">
-            <h3>How to interpret these views</h3>
-            <ul>
-                <li>
-                    The scatterplot helps explore whether runtime and vote
-                    count appear to vary together.
-                </li>
-                <li>
-                    The genre comparison highlights differences in median
-                    vote counts across categories.
-                </li>
-                <li>
-                    Selecting a genre links the two views, making it easier
-                    to investigate patterns for a particular category.
-                </li>
-            </ul>
-
-            <p>
-                These are exploratory associations, not evidence that runtime
-                or genre causes a movie to receive more votes. Vote count is
-                used as a proxy for audience popularity, not rating quality.
-                Because movies can belong to multiple genres, genre groups
-                overlap.
-            </p>
-        </div>
     </section>
 </div>
 
