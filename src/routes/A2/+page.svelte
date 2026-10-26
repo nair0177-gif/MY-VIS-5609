@@ -114,8 +114,6 @@
 
     // ---------------------------------------------------------
     // PART 4: RUNTIME & GENRE EXPLORER
-    // Research question:
-    // Do runtime and genre relate to popularity, measured by votes?
     // ---------------------------------------------------------
 
     type PopularityMovie = TMovie & {
@@ -146,6 +144,28 @@
     );
 
     let selectedGenre: string | null = $state(null);
+    let hoveredMovie: PopularityMovie | null = $state(null);
+
+    // Tooltip position is relative to the chart card.
+    let tooltipPosition = $state({ x: 0, y: 0 });
+
+    function showMovieTooltip(
+        event: MouseEvent,
+        movie: PopularityMovie,
+    ) {
+        const target = event.currentTarget as SVGCircleElement;
+        const card = target.closest(".view-card") as HTMLElement | null;
+
+        if (!card) return;
+
+        const cardRect = card.getBoundingClientRect();
+
+        hoveredMovie = movie;
+        tooltipPosition = {
+            x: event.clientX - cardRect.left + 14,
+            y: event.clientY - cardRect.top + 14,
+        };
+    }
 
     const part4Movies = $derived(
         selectedGenre
@@ -155,7 +175,7 @@
             : validPopularityMovies,
     );
 
-    // View 1: Runtime vs. number of votes
+    // View 1: Runtime versus number of votes.
     const chartWidth = 680;
     const chartHeight = 390;
 
@@ -172,11 +192,11 @@
     const plotBottom = chartHeight - chartMargin.bottom;
 
     const runtimeExtent = $derived(
-    d3.extent(
-        validPopularityMovies,
-        (movie) => movie.runtime_minutes,
-    ) as [number, number],
-);
+        d3.extent(
+            validPopularityMovies,
+            (movie) => movie.runtime_minutes,
+        ) as [number, number],
+    );
 
     const runtimeDomain = $derived.by(() => {
         const [min, max] = runtimeExtent;
@@ -221,15 +241,14 @@
     );
 
     const runtimeTicks = $derived(runtimeScale.ticks(6));
-    
-const voteTicks = $derived(
-    [1, 10, 100, 1_000, 10_000, 100_000, 1_000_000].filter(
-        (value) => value >= minVotes && value <= maxVotes,
-    ),
-);
 
+    const voteTicks = $derived(
+        [1, 10, 100, 1_000, 10_000, 100_000, 1_000_000].filter(
+            (value) => value >= minVotes && value <= maxVotes,
+        ),
+    );
 
-    // View 2: Median votes by genre
+    // View 2: Median votes by genre.
     function median(values: number[]) {
         const sorted = [...values].sort((a, b) => a - b);
 
@@ -270,9 +289,9 @@ const voteTicks = $derived(
             .range([0, 300]),
     );
 
-    // Selecting the same genre again clears the selection.
     function toggleGenre(genre: string) {
         selectedGenre = selectedGenre === genre ? null : genre;
+        hoveredMovie = null;
     }
 
     function formatVotes(value: number) {
@@ -280,6 +299,25 @@ const voteTicks = $derived(
             notation: "compact",
             maximumFractionDigits: 1,
         }).format(value);
+    }
+
+    function movieTitle(movie: PopularityMovie) {
+        return (
+            movie.primary_title ||
+            movie.original_title ||
+            movie.tconst ||
+            "Untitled movie"
+        );
+    }
+
+    function movieYear(movie: PopularityMovie) {
+        const year = movie.year;
+
+        if (year instanceof Date && !Number.isNaN(year.getTime())) {
+            return year.getFullYear().toString();
+        }
+
+        return "Not available";
     }
 </script>
 
@@ -333,7 +371,7 @@ const voteTicks = $derived(
     {/if}
 
     <!-- =====================================================
-         PART 4
+         PART 4: FURTHER EDA
          ===================================================== -->
 
     <section class="part4">
@@ -371,15 +409,18 @@ const voteTicks = $derived(
                     <h3>1. Runtime vs. audience popularity</h3>
                     <p>
                         Each circle represents one movie. The vertical axis
-                        uses a logarithmic scale because vote counts can
-                        vary substantially.
+                        uses a logarithmic scale because vote counts vary
+                        substantially. Hover over a circle for movie details.
                     </p>
                 </div>
 
                 {#if selectedGenre}
                     <button
                         class="reset-button"
-                        onclick={() => (selectedGenre = null)}
+                        onclick={() => {
+                            selectedGenre = null;
+                            hoveredMovie = null;
+                        }}
                     >
                         Clear genre
                     </button>
@@ -449,30 +490,20 @@ const voteTicks = $derived(
                         class="axis-line"
                     />
 
-                    
-{#each part4Movies as movie, i (`${movie.tconst}-${i}`)}
-    <circle
-        cx={runtimeScale(movie.runtime_minutes)}
-        cy={Math.max(
-            plotTop,
-            Math.min(
-                plotBottom,
-                voteScale(movie.num_votes) +
-                    ((i % 5) - 2) * 1.2,
-            ),
-        )}
-        r="2.8"
-        class="movie-point"
-    >
-        <title>
-            {movie.primary_title || movie.original_title || movie.tconst}
-            — Runtime: {movie.runtime_minutes} min
-            — Votes: {movie.num_votes.toLocaleString()}
-            — Genres: {movie.genres.join(", ")}
-        </title>
-    </circle>
-{/each}
-
+                    {#each part4Movies as movie, i (`${movie.tconst}-${i}`)}
+                        <circle
+                            cx={runtimeScale(movie.runtime_minutes)}
+                            cy={voteScale(movie.num_votes)}
+                            r={hoveredMovie?.tconst === movie.tconst ? 7 : 4}
+                            class="movie-point"
+                            class:movie-point-hovered={hoveredMovie?.tconst === movie.tconst}
+                            onmouseenter={(event) => showMovieTooltip(event, movie)}
+                            onmousemove={(event) => showMovieTooltip(event, movie)}
+                            onmouseleave={() => (hoveredMovie = null)}
+                        >
+                            <title>{movieTitle(movie)}</title>
+                        </circle>
+                    {/each}
 
                     <text
                         x={(plotLeft + plotRight) / 2}
@@ -492,6 +523,59 @@ const voteTicks = $derived(
                     </text>
                 </svg>
             </div>
+
+            {#if hoveredMovie}
+                <div
+                    class="movie-tooltip"
+                    style:left={`${Math.max(8, Math.min(tooltipPosition.x, 340))}px`}
+                    style:top={`${Math.max(65, tooltipPosition.y)}px`}
+                    role="status"
+                    aria-live="polite"
+                >
+                    <div class="tooltip-heading">
+                        <span class="tooltip-label">MOVIE DETAILS</span>
+                        <strong class="tooltip-title">
+                            {movieTitle(hoveredMovie)}
+                        </strong>
+                    </div>
+
+                    <div class="tooltip-detail">
+                        <span>Release year</span>
+                        <strong>{movieYear(hoveredMovie)}</strong>
+                    </div>
+
+                    <div class="tooltip-detail">
+                        <span>Runtime</span>
+                        <strong>{hoveredMovie.runtime_minutes} minutes</strong>
+                    </div>
+
+                    <div class="tooltip-detail">
+                        <span>Average rating</span>
+                        <strong>
+                            {Number.isFinite(Number(hoveredMovie.average_rating))
+                                ? `${Number(hoveredMovie.average_rating).toFixed(1)} / 10`
+                                : "Not available"}
+                        </strong>
+                    </div>
+
+                    <div class="tooltip-detail">
+                        <span>Audience votes</span>
+                        <strong>{hoveredMovie.num_votes.toLocaleString()}</strong>
+                    </div>
+
+                    <div class="tooltip-detail tooltip-genres">
+                        <span>Genres</span>
+                        <strong>{hoveredMovie.genres.join(", ")}</strong>
+                    </div>
+
+                    {#if hoveredMovie.tconst}
+                        <div class="tooltip-detail">
+                            <span>IMDb ID</span>
+                            <strong>{hoveredMovie.tconst}</strong>
+                        </div>
+                    {/if}
+                </div>
+            {/if}
 
             <p class="chart-note">
                 {#if selectedGenre}
@@ -517,7 +601,10 @@ const voteTicks = $derived(
 
                 <button
                     class="reset-button"
-                    onclick={() => (selectedGenre = null)}
+                    onclick={() => {
+                        selectedGenre = null;
+                        hoveredMovie = null;
+                    }}
                     disabled={selectedGenre === null}
                 >
                     Show all genres
@@ -558,7 +645,6 @@ const voteTicks = $derived(
                 Bars use a linear scale; vote counts may still be highly skewed.
             </p>
         </div>
-
     </section>
 </div>
 
@@ -597,6 +683,7 @@ const voteTicks = $derived(
     }
 
     .part4 {
+        position: relative;
         margin-top: 64px;
         padding-top: 32px;
         border-top: 2px solid #dbe5f1;
@@ -654,6 +741,7 @@ const voteTicks = $derived(
     }
 
     .view-card {
+        position: relative;
         margin: 20px 0;
         padding: 20px;
         border: 1px solid #dce5f0;
@@ -669,8 +757,7 @@ const voteTicks = $derived(
         margin-bottom: 16px;
     }
 
-    .view-header h3,
-    .interpretation-card h3 {
+    .view-header h3 {
         margin: 0 0 8px;
         color: #163a70;
         font-size: 18px;
@@ -690,6 +777,11 @@ const voteTicks = $derived(
 
     .chart-scroll {
         overflow-x: auto;
+    }
+
+    .chart-scroll svg {
+        display: block;
+        overflow: visible;
     }
 
     .grid-line {
@@ -713,21 +805,90 @@ const voteTicks = $derived(
         font-weight: 600;
     }
 
-    
-.movie-point {
-    fill: #2563eb;
-    fill-opacity: 0.25;
-    stroke: #1d4ed8;
-    stroke-opacity: 0.3;
-    stroke-width: 0.5;
-}
+    .movie-point {
+        fill: #2563eb;
+        fill-opacity: 0.25;
+        stroke: #1d4ed8;
+        stroke-opacity: 0.45;
+        stroke-width: 0.7;
+        cursor: crosshair;
+        transition:
+            r 100ms ease,
+            fill-opacity 100ms ease;
+    }
 
-.movie-point:hover {
-    fill-opacity: 0.95;
-    stroke-opacity: 1;
-    stroke-width: 1.5;
-}
+    .movie-point:hover,
+    .movie-point-hovered {
+        fill-opacity: 0.95;
+        stroke-opacity: 1;
+        stroke-width: 1.5;
+    }
 
+    .movie-tooltip {
+        position: absolute;
+        z-index: 5;
+        width: min(260px, calc(100% - 24px));
+        box-sizing: border-box;
+        padding: 14px;
+        border: 1px solid #cbd8ea;
+        border-radius: 9px;
+        background: #ffffff;
+        box-shadow: 0 8px 24px rgb(22 58 112 / 16%);
+        pointer-events: none;
+    }
+
+    .tooltip-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 10px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e7edf5;
+    }
+
+    .tooltip-label {
+        color: #2563eb;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 1.1px;
+    }
+
+    .tooltip-title {
+        color: #163a70;
+        font-size: 14px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .tooltip-detail {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 5px 0;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .tooltip-detail span {
+        flex-shrink: 0;
+        color: #64748b;
+    }
+
+    .tooltip-detail strong {
+        color: #263d5b;
+        text-align: right;
+        overflow-wrap: anywhere;
+    }
+
+    .tooltip-genres {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .tooltip-genres strong {
+        text-align: left;
+    }
 
     .reset-button {
         flex-shrink: 0;
@@ -818,25 +979,6 @@ const voteTicks = $derived(
         margin: 14px 0 0;
     }
 
-    .interpretation-card {
-        margin-top: 20px;
-        padding: 20px;
-        border: 1px solid #dce5f0;
-        border-radius: 10px;
-    }
-
-    .interpretation-card ul {
-        padding-left: 20px;
-        color: #475569;
-        line-height: 1.8;
-    }
-
-    .interpretation-card p {
-        color: #64748b;
-        font-size: 13px;
-        line-height: 1.7;
-    }
-
     @media (max-width: 900px) {
         .container {
             width: 94%;
@@ -854,6 +996,12 @@ const voteTicks = $derived(
 
         .view-header {
             flex-wrap: wrap;
+        }
+
+        .genre-row {
+            grid-template-columns: 76px minmax(45px, 1fr) 48px 36px;
+            gap: 6px;
+            padding: 7px 4px;
         }
     }
 </style>
