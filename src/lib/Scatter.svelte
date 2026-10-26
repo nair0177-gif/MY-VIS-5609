@@ -58,81 +58,62 @@
     return position;
 }
 
-    function getScale(
-        attrName: keyof TMovie,
-        axis: "x" | "y" | "color" | "size",
-        movies: TMovie[],
-    ) {
-        if (movies.length === 0) {
-            return null;
-        }
-
-        let range: number[] = [0, 0];
-
-        if (axis === "x") {
-            range = [usableArea.left, usableArea.right];
-        } else if (axis === "y") {
-            range = [usableArea.bottom, usableArea.top];
-        } else if (axis === "size") {
-            range = sizeRange;
-        }
-
-        const firstValue = movies[0][attrName];
-
-        if (typeof firstValue === "string") {
-            const values = movies.map(
-                (movie) => movie[attrName] as string,
-            );
-
-            return d3
-                .scaleBand<string>()
-                .domain([...new Set(values)])
-                .range(range);
-        }
-
-        if (typeof firstValue === "number") {
-            const extent = d3.extent(
-                movies,
-                (movie) => movie[attrName] as number,
-            ) as [number, number];
-
-            // Avoid a degenerate domain when every value is identical.
-            if (extent[0] === extent[1]) {
-                extent[0] -= 1;
-                extent[1] += 1;
-            }
-
-            return d3
-                .scaleLinear()
-                .domain(extent)
-                .range(range);
-        }
-
-        if (firstValue instanceof Date) {
-            const extent = d3.extent(
-                movies,
-                (movie) => movie[attrName] as Date,
-            ) as [Date, Date];
-
-            return d3
-                .scaleTime()
-                .domain(extent)
-                .range(range);
-        }
-
-        if (Array.isArray(firstValue)) {
-            const allValues = movies.flatMap(
-                (movie) => movie[attrName] as string[],
-            );
-
-            return d3
-                .scaleBand<string>()
-                .domain([...new Set(allValues)])
-                .range(range);
-        }
-
+function getScale(
+    attrName: keyof TMovie,
+    axis: "x" | "y" | "color" | "size",
+    movies: TMovie[],
+) {
+    if (movies.length == 0) {
         return null;
     }
+
+    let range: number[] = [0, 0];
+    if (axis == "x") {
+        range = [usableArea.left, usableArea.right];
+    } else if (axis == "y") {
+        range = [usableArea.bottom, usableArea.top];
+    } else if (axis == "size") {
+        range = sizeRange;
+    }
+
+    if (typeof movies[0][attrName] == "string") {
+        return d3
+            .scaleBand()
+            .domain(movies.map((d) => d[attrName] as string))
+            .range(range);
+    } else if (typeof movies[0][attrName] == "number") {
+        return d3
+            .scaleLinear()
+            .domain(
+                d3.extent(movies, (d) => d[attrName] as number) as [
+                    number,
+                    number,
+                ],
+            )
+            .range(range);
+    } else if (movies[0][attrName] instanceof Date) {
+        return d3
+            .scaleTime()
+            .domain(
+                d3.extent(movies, (d) => d[attrName] as Date) as [
+                    Date,
+                    Date,
+                ],
+            )
+            .range(range);
+    } else if (typeof movies[0][attrName] == "object") {
+        let allValues = movies
+            .map((d) => d[attrName] as string[])
+            .reduce((acc, val) => acc.concat(val), []);
+
+        return d3
+            .scaleBand()
+            .domain([...new Set(allValues)])
+            .range(range);
+    } else {
+        return null;
+    }
+}
 
     const xScale = $derived(getScale(x, "x", movies));
     const yScale = $derived(getScale(y, "y", movies));
@@ -180,45 +161,39 @@
 <svg {width} {height}>
     <g class="points">
         {#each movies as movie, i (`${movie.tconst}-${i}`)}
-            {#if x === "genres"}
-                {#each movie.genres as genre, j (`${movie.tconst}-${genre}-${j}`)}
-                    <!-- svelte-ignore a11y_click_events_have_key_events -->
-                    <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <circle
-                        cx={getPosition(xScale, genre, usableArea.left)}
-cy={getPosition(yScale, genre, usableArea.bottom)}
-                        r={sizeScale
-                            ? Math.max(3, (sizeScale as any)(movie[size!]))
-                            : sizeRange[0]}
-                        fill={movie === selectedMovie ? "steelblue" : "transparent"}
-                        stroke="steelblue"
-                        stroke-width="2"
-                        opacity={movie === selectedMovie ? 1 : 0.5}
-                        onclick={() => handleMovieClick(movie)}
-                    />
-                {/each}
-            {:else}
-                <!-- svelte-ignore a11y_click_events_have_key_events -->
-                <!-- svelte-ignore a11y_no_static_element_interactions -->
-                <circle
-                    cx={xScale
-                        ? (xScale as any)(movie[x]) +
-                          ((xScale as any).bandwidth ? (xScale as any).bandwidth() / 2 : 0)
-                        : usableArea.left}
-                    cy={yScale
-                        ? (yScale as any)(movie[y]) +
-                          ((yScale as any).bandwidth ? (yScale as any).bandwidth() / 2 : 0)
-                        : usableArea.bottom}
-                    r={sizeScale
-                        ? Math.max(3, (sizeScale as any)(movie[size!]))
-                        : sizeRange[0]}
-                    fill={movie === selectedMovie ? "steelblue" : "transparent"}
-                    stroke="steelblue"
-                    stroke-width="2"
-                    opacity={movie === selectedMovie ? 1 : 0.5}
-                    onclick={() => handleMovieClick(movie)}
-                />
-            {/if}
+{#if x == "genres"}
+    {#each movie["genres"] as genre}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <circle
+            cx={xScale ? (xScale as any)(genre) : usableArea.left}
+            cy={yScale ? (yScale as any)(movie[y]) : usableArea.bottom}
+            r={sizeScale
+                ? (sizeScale as any)(movie[size!])
+                : sizeRange[0]}
+            fill={movie == selectedMovie ? "steelblue" : "transparent"}
+            stroke="steelblue"
+            stroke-width="2"
+            opacity={movie == selectedMovie ? 1 : 0.5}
+            onclick={() => handleMovieClick(movie)}
+        />
+    {/each}
+{:else}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <circle
+        cx={xScale ? (xScale as any)(movie[x]) : usableArea.left}
+        cy={yScale ? (yScale as any)(movie[y]) : usableArea.bottom}
+        r={sizeScale
+            ? (sizeScale as any)(movie[size!])
+            : sizeRange[0]}
+        fill={movie == selectedMovie ? "steelblue" : "transparent"}
+        stroke="steelblue"
+        stroke-width="2"
+        opacity={movie == selectedMovie ? 1 : 0.5}
+        onclick={() => handleMovieClick(movie)}
+    />
+{/if}
         {/each}
     </g>
 

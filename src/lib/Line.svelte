@@ -20,12 +20,12 @@
     right: 10,
   };
 
-  const usableArea = $derived({
+  let usableArea = {
     top: margin.top,
     right: width - margin.right,
     bottom: height - margin.bottom,
     left: margin.left,
-});
+};
 
   const xScale = $derived(
     d3
