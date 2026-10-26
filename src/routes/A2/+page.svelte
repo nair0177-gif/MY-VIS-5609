@@ -57,17 +57,16 @@
         size: keyof TMovie;
     };
 
-    // Store the selected attributes for the chart
+    // Default chart: Year vs. Average Rating, sized by Number of Votes
     let axisSelection: TAxisSelection = $state({
         x: "year",
         y: "average_rating",
         size: "num_votes",
     });
 
-    // Function to load the CSV
+    // Load the CSV using the GitHub Pages base path
     async function loadCsv() {
         try {
-            // Keep the base path so the CSV works on GitHub Pages
             const csvUrl = `${base}/summer_movies.csv`;
 
             const response = await fetch(csvUrl);
@@ -94,23 +93,27 @@
         }
     }
 
-    // Call the loader when the component mounts
+    // Load data when the component mounts
     onMount(loadCsv);
 
-    // X Axis: include all fields from the movie data
+    // X Axis: all fields, matching the professor's original code
     const attrOptionsX = $derived(
         movies[0] ? Object.keys(movies[0]) : [],
     );
 
     // Y Axis: exclude genres because it is an array
     const attrOptionsY = $derived(
-    movies[0] ? Object.keys(movies[0]) : [],
-);
+        movies[0]
+            ? Object.keys(movies[0]).filter((key) => key !== "genres")
+            : [],
+    );
 
-    // Size: use numeric fields only
+    // Size: exclude genres because it is an array
     const attrOptionsS = $derived(
-    movies[0] ? Object.keys(movies[0]) : [],
-);
+        movies[0]
+            ? Object.keys(movies[0]).filter((key) => key !== "genres")
+            : [],
+    );
 
     // Filter movies based on the selected year range
     const filteredMovies = $derived.by(() => {
