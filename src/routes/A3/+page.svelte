@@ -134,14 +134,23 @@
         scene = new THREE.Scene();
 
         // Animated summer sun
-        const sunGeometry = new THREE.SphereGeometry(65, 32, 32);
-        const sunMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffd166,
-        });
+        const sunTexture = new THREE.TextureLoader().load(
+    `${base}/3d/sun.jpg`
+);
 
-        sun = new THREE.Mesh(sunGeometry, sunMaterial);
-        sun.position.set(-850, FLOOR + 650, -300);
-        scene.add(sun);
+const sunMaterial = new THREE.MeshBasicMaterial({
+    map: sunTexture,
+    transparent: true,
+    depthWrite: false
+});
+
+const sunGeometry = new THREE.PlaneGeometry(220, 220);
+
+const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+
+sun.position.set(-850, FLOOR + 650, -300);
+
+scene.add(sun);
 
         new THREE.TextureLoader().load(`${base}/3d/sky.jpg`, (texture) => {
             texture.repeat.set(0.8, 1);
