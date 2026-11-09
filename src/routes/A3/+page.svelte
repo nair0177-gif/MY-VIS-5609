@@ -135,7 +135,7 @@
 
         // Animated summer sun
         const sunTexture = new THREE.TextureLoader().load(
-    `${base}/3d/sun.jpg`
+    `${base}/3d/sun.png`
 );
 
 const sunMaterial = new THREE.MeshBasicMaterial({
